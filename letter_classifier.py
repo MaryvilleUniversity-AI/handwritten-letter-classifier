@@ -21,20 +21,37 @@ draw = ImageDraw.Draw(image)
 
 # Drawing functions
 def paint(event):
-    x1, y1 = (event.x-8), (event.y-8)
-    x2, y2 = (event.x+8), (event.y+8)
+    r = 3
+    x1, y1 = (event.x-r), (event.y-r)
+    x2, y2 = (event.x+r), (event.y+r)
     canvas.create_oval(x1, y1, x2, y2, fill='black', outline='black')
     draw.ellipse([x1, y1, x2, y2], fill=0)
 
 canvas.bind("<B1-Motion>", paint)
 
+def preprocess_drawing(img, canvas_size=200, target_size=28):
+    img = img.convert('L')
+    img = ImageOps.invert(img)
+
+    bbox = img.getbbox()
+    if bbox:
+        img = img.crop(bbox)
+
+    # Resize while keeping aspect ratio
+    img = img.resize((target_size, target_size))
+
+    # Normalize 
+    img = np.array(img) / 255.0
+
+    # Reshape for CNN
+    img = img.reshape(1, target_size, target_size, 1)
+    
+    return img
+
 # Predict button
 def predict():
-    img = image.resize((28,28))
-    img = ImageOps.invert(img) # invert colors: black background => white
-    img = np.array(img) / 255.0
-    img = img.reshape(1, 28, 28, 1)
-    pred = model.predict(img)
+    img_array = preprocess_drawing(image)
+    pred = model.predict(img_array, verbose=0)
     letter = chr(np.argmax(pred) + 65) # Convert 0-25 -> A-Z
     result_label.config(text=f"Predicted: {letter}")
 
